@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>DoN Congressional Map</title>
+  <meta name="description" content="Interactive map of U.S. congressional districts (120th Congress) with Department of the Navy installations.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1>DoN Congressional Map</h1>
+        <p class="sub">120th Congress · this project is in beta</p>
+      </div>
+    </div>
+
+    <div class="chamber" role="tablist" aria-label="Chamber">
+      <button role="tab" aria-selected="true" data-chamber="house">House</button>
+      <button role="tab" aria-selected="false" data-chamber="senate">Senate</button>
+    </div>
+
+    <div class="search">
+      <svg class="search-icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>
+      <input id="q" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search a representative, district (VA-2), or installation"
+             aria-label="Search" aria-autocomplete="list" aria-controls="suggest">
+      <ul id="suggest" role="listbox" hidden></ul>
+    </div>
+
+    <button class="layers-btn" id="layersBtn" aria-expanded="false" aria-controls="layers">Layers</button>
+  </header>
+
+  <div id="map" aria-label="Map"></div>
+
+  <section id="layers" class="layers" hidden>
+    <h2>Layers</h2>
+    <label><input type="checkbox" data-layer="navy" checked><span class="sw sw-navy"></span>Navy installations</label>
+    <label><input type="checkbox" data-layer="usmc" checked><span class="sw sw-usmc"></span>Marine Corps installations</label>
+    <label><input type="checkbox" data-layer="joint" checked><span class="sw sw-joint"></span>Joint bases (Navy tenant)</label>
+    <label><input type="checkbox" data-layer="reserve" checked><span class="sw sw-res"></span>Reserve centers (Navy &amp; USMC)</label>
+    <label><input type="checkbox" data-layer="minor"><span class="sw sw-minor"></span>Minor sites (hidden in sheet)</label>
+    <label><input type="checkbox" data-layer="contractors" checked><span class="sw sw-con"></span>Defense contractors</label>
+    <hr>
+    <label><input type="checkbox" data-layer="basemap"><span class="sw sw-base"></span>Street map background</label>
+    <hr>
+    <label class="jump">Jump to
+      <select id="jump">
+        <option value="">Choose…</option>
+        <option value="conus">Lower 48</option>
+        <option value="AK">Alaska</option>
+        <option value="HI">Hawaii</option>
+        <option value="PR">Puerto Rico &amp; USVI</option>
+        <option value="GU">Guam &amp; N. Mariana Is.</option>
+        <option value="AS">American Samoa</option>
+      </select>
+    </label>
+  </section>
+
+  <div id="hovercard" class="hovercard" hidden></div>
+  <div id="tip" class="tip" hidden></div>
+
+  <aside id="panel" class="panel" hidden aria-live="polite">
+    <button class="panel-close" id="panelClose" aria-label="Close">×</button>
+    <div id="panelBody"></div>
+  </aside>
+
+  <div id="status" class="status">Loading map data…</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

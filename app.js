@@ -114,7 +114,7 @@
     // installations: geometry from topojson joined to sheet rows by ID; rows w/o geometry use lat/lon
     const geomById = new Map(instGeo.features.map((f) => [f.properties.id, f.geometry]));
     for (const r of readSheet(wb, 'Installations')) {
-      if (!r.ID || !r.Name) continue;
+      if (!r.ID || !r.Name || isNo(r.Show)) continue; // Show = No rows are left off the site entirely
       let geometry = geomById.get(r.ID);
       const lat = parseFloat(r.Latitude), lon = parseFloat(r.Longitude);
       if (!geometry && isFinite(lat) && isFinite(lon)) geometry = { type: 'Point', coordinates: [lon, lat] };

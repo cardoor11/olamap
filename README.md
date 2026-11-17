@@ -18,9 +18,8 @@ Any column you **add** to the House or Senate tabs (Committees, Military Service
 
 ## Folders
 
-- `site/` — the website. Upload this whole folder to any static host (GitHub Pages, Netlify, Cloudflare Pages).
-- `site/geo/` — boundary files (districts, states, installation outlines). Generated once; you won't need to edit these.
-- `prep/` — scripts that generated the boundary files and the first version of the spreadsheet (for reference).
+- `site/` — the website. Upload folder to static host 
+- `site/geo/` — boundary files
 
 ## Data sources
 

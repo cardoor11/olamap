@@ -2,14 +2,6 @@
 
 Interactive map of 120th Congress districts with Department of the Navy installations.
 
-## Run it locally
-
-```bash
-node serve.mjs
-```
-
-Then open http://localhost:8765. (Opening `site/index.html` directly from Finder won't work, because browsers block it from loading the data files.)
-
 ## Update the data
 
 Edit **`site/data/map_data.xlsx`**, save it, and refresh the page. You don't need to rebuild anything.

@@ -32,6 +32,8 @@
     AS: [[-171.2, -14.6], [-168.1, -14.1]]
   };
   const HOVER_DELAY = 500;
+  const LO_Z = 7; // below this zoom the light district file is drawn
+  const DISTRICT_FILL = ['district-fill', 'district-fill-lo'];
   const IS_TOUCH = window.matchMedia('(hover: none)').matches;
   const HOUSE_CORE = ['District', 'State', 'Name', 'Party', 'Status'];
   const SENATE_CORE = ['State', 'Name', 'Party', 'Class', 'Status'];
@@ -85,8 +87,9 @@
   const isNo = (v) => /^(no|n|false|0)$/i.test(String(v).trim());
 
   async function load() {
-    const [dTopo, sTopo, iTopo, labels, xbuf] = await Promise.all([
+    const [dTopo, dLoTopo, sTopo, iTopo, labels, xbuf] = await Promise.all([
       fetchJSON('geo/districts.topojson'),
+      fetchJSON('geo/districts_lo.topojson'),
       fetchJSON('geo/states.topojson'),
       fetchJSON('geo/installations.topojson'),
       fetchJSON('geo/district_labels.geojson'),
@@ -94,6 +97,7 @@
     ]);
 
     S.districts = topojson.feature(dTopo, dTopo.objects.districts);
+    S.districtsLo = topojson.feature(dLoTopo, dLoTopo.objects.districts);
     S.states = topojson.feature(sTopo, sTopo.objects.states);
     const instGeo = topojson.feature(iTopo, iTopo.objects.installations);
 
@@ -187,7 +191,14 @@
 
   function addLayers(labels) {
     map.addSource('states', { type: 'geojson', data: S.states, promoteId: 'st' });
-    map.addSource('districts', { type: 'geojson', data: S.districts, promoteId: 'id', tolerance: 0.3 });
+    // Two copies of the district lines: a light one (400 m detail) for the zoomed-out view and the
+    // full-detail one from zoom LO_Z in. Drawing the full file at national scale is what makes slower laptops lag.
+    map.addSource('districts', { type: 'geojson', data: S.districts, promoteId: 'id', tolerance: 0.3, maxzoom: 13 });
+    map.addSource('districts-lo', { type: 'geojson', data: S.districtsLo, promoteId: 'id', maxzoom: LO_Z });
+    const addDistrictLayer = (def) => {
+      map.addLayer({ ...def, minzoom: LO_Z });
+      map.addLayer({ ...def, id: `${def.id}-lo`, source: 'districts-lo', maxzoom: LO_Z });
+    };
     map.addSource('district-labels', { type: 'geojson', data: labels });
     map.addSource('inst', { type: 'geojson', data: { type: 'FeatureCollection', features: S.inst }, promoteId: 'id' });
     map.addSource('inst-pts', {
@@ -203,9 +214,9 @@
       paint: { 'fill-color': '#1f3864', 'fill-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 0.1, ['boolean', ['feature-state', 'hover'], false], 0.06, 0] } });
 
     // --- districts
-    map.addLayer({ id: 'district-fill', type: 'fill', source: 'districts',
+    addDistrictLayer({ id: 'district-fill', type: 'fill', source: 'districts',
       paint: { 'fill-color': '#1f3864', 'fill-opacity': ['case', ['boolean', ['feature-state', 'sel'], false], 0.1, ['boolean', ['feature-state', 'hover'], false], 0.06, 0] } });
-    map.addLayer({ id: 'district-line', type: 'line', source: 'districts',
+    addDistrictLayer({ id: 'district-line', type: 'line', source: 'districts',
       paint: {
         'line-color': '#9aa4b2',
         'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.4, 8, 0.9, 12, 1.6],
@@ -240,7 +251,7 @@
         'circle-stroke-color': '#fff', 'circle-stroke-width': 1 } });
 
     // --- highlighted outlines (selected/hovered district or state)
-    map.addLayer({ id: 'district-hl', type: 'line', source: 'districts',
+    addDistrictLayer({ id: 'district-hl', type: 'line', source: 'districts',
       paint: { 'line-color': '#1f3864', 'line-width': ['case', ['boolean', ['feature-state', 'sel'], false], 3, ['boolean', ['feature-state', 'hover'], false], 2, 0] } });
     map.addLayer({ id: 'state-hl', type: 'line', source: 'states', layout: { visibility: 'none' },
       paint: { 'line-color': '#1f3864', 'line-width': ['case', ['boolean', ['feature-state', 'sel'], false], 3.2, ['boolean', ['feature-state', 'hover'], false], 2.4, 0] } });
@@ -287,7 +298,7 @@
     S.chamber = ch;
     document.querySelectorAll('.chamber button').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.chamber === ch)));
     const house = ch === 'house';
-    for (const id of ['district-fill', 'district-line', 'district-label', 'district-hl']) map.setLayoutProperty(id, 'visibility', house ? 'visible' : 'none');
+    for (const id of [...DISTRICT_FILL, 'district-line', 'district-line-lo', 'district-label', 'district-hl', 'district-hl-lo']) map.setLayoutProperty(id, 'visibility', house ? 'visible' : 'none');
     map.setLayoutProperty('state-hl', 'visibility', house ? 'none' : 'visible');
     clearHover(); clearSelection(); closePanel();
     $('#q').value = '';
@@ -297,8 +308,8 @@
   // ---------------------------------------------------------------- feature-state helpers
   function setFS(target, on) {
     if (!target) return;
-    const src = target.kind === 'district' ? 'districts' : target.kind === 'state' ? 'states' : 'inst';
-    map.setFeatureState({ source: src, id: target.id }, on);
+    if (target.kind === 'district') { for (const src of ['districts', 'districts-lo']) map.setFeatureState({ source: src, id: target.id }, on); return; }
+    map.setFeatureState({ source: target.kind === 'state' ? 'states' : 'inst', id: target.id }, on);
   }
   function clearSelection() {
     if (S.selected) { setFS(S.selected, { sel: false }); S.selected = null; }
@@ -576,8 +587,14 @@
     el.style.left = `${Math.max(8, x)}px`; el.style.top = `${y + top0}px`;
   }
 
+  let pendingMove = null;
+  function onMoveThrottled(e) {
+    const idle = !pendingMove; pendingMove = e;
+    if (idle) requestAnimationFrame(() => { const ev = pendingMove; pendingMove = null; onMove(ev); });
+  }
   function onMove(e) {
     lastPt = e.point;
+    if (map.isMoving()) { tip.hidden = true; return; } // no hit-testing mid-drag/zoom
     // installation / contractor tooltip (immediate)
     const pts = map.queryRenderedFeatures(e.point, { layers: ['con-pt', 'inst-pt', 'inst-fill'] });
     if (pts.length) {
@@ -593,8 +610,8 @@
     } else { tip.hidden = true; map.getCanvas().style.cursor = ''; }
 
     // district / state profile card (after 1 s dwell)
-    const layer = S.chamber === 'house' ? 'district-fill' : 'state-fill';
-    const hit = map.queryRenderedFeatures(e.point, { layers: [layer] })[0];
+    const layers = S.chamber === 'house' ? DISTRICT_FILL : ['state-fill'];
+    const hit = map.queryRenderedFeatures(e.point, { layers })[0];
     const target = hit ? { kind: S.chamber === 'house' ? 'district' : 'state', id: hit.properties[S.chamber === 'house' ? 'id' : 'st'] } : null;
     if (!target) { if (S.hover) clearHover(); return; }
     if (S.hover && S.hover.id === target.id) {
@@ -616,8 +633,8 @@
     if (inst) { goInstNoFly(inst.properties.id); return; }
     const con = map.queryRenderedFeatures(e.point, { layers: ['con-pt'] })[0];
     if (con) { showContractor(con.properties.id); return; }
-    const layer = S.chamber === 'house' ? 'district-fill' : 'state-fill';
-    const hit = map.queryRenderedFeatures(e.point, { layers: [layer] })[0];
+    const layers = S.chamber === 'house' ? DISTRICT_FILL : ['state-fill'];
+    const hit = map.queryRenderedFeatures(e.point, { layers })[0];
     if (!hit) { closePanel(); clearSelection(); return; }
     card.hidden = true;
     if (S.chamber === 'house') { select('district', hit.properties.id); openPanel('district', hit.properties.id); }
@@ -779,7 +796,7 @@
       window.addEventListener('resize', fitHeader);
       buildIndex();
       if (!IS_TOUCH) {
-        map.on('mousemove', onMove);
+        map.on('mousemove', onMoveThrottled);
         map.getCanvas().addEventListener('mouseleave', clearHover);
         map.on('movestart', () => { card.hidden = true; tip.hidden = true; });
       }
